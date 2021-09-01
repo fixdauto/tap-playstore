@@ -2,98 +2,111 @@
 import os
 import json
 import singer
-from singer import utils, metadata
-from singer.catalog import Catalog, CatalogEntry
-from singer.schema import Schema
+from singer.catalog import Catalog
+import tap_gcs_csv
 
-
-REQUIRED_CONFIG_KEYS = ["start_date", "username", "password"]
+REQUIRED_CONFIG_KEYS = ["start_date", "credentials_path", "bucket"]
 LOGGER = singer.get_logger()
-
 
 def get_abs_path(path):
     return os.path.join(os.path.dirname(os.path.realpath(__file__)), path)
 
-
-def load_schemas():
-    """ Load schemas from schemas folder """
-    schemas = {}
-    for filename in os.listdir(get_abs_path('schemas')):
-        path = get_abs_path('schemas') + '/' + filename
-        file_raw = filename.replace('.json', '')
-        with open(path) as file:
-            schemas[file_raw] = Schema.from_dict(json.load(file))
-    return schemas
-
+STREAMS = {
+    "reviews": {
+      "pattern": "reviews/reviews_.*_([0-9]+)\\.csv",
+      "search_prefix": "reviews",
+      "format": "csv",
+      "encoding": "utf-16", # Google seems to arbitrarily switch between utf-8 and utf-16
+    },
+    "subscription_financial_stats_by_country": {
+      "pattern": "financial-stats/subscriptions/subscriptions_.*_country\\.csv",
+      "search_prefix": "financial-stats/subscriptions",
+      "format": "csv",
+      "encoding": "utf-16",
+    },
+    "subscription_cancellations": {
+      "pattern": "subscriptions/cancellations/freeform.*\\.csv",
+      "search_prefix": "subscriptions/cancellations",
+      "format": "csv",
+      "encoding": "utf-8",
+      "compression": "zip" # This is actually a zip file, even though the filename is .csv
+   },
+   "sales": {
+      "pattern": "sales/salesreport_([0-9]+)\\.zip",
+      "search_prefix": "sales",
+      "format": "csv",
+      "encoding": "utf-8",
+      "compression": "zip"
+   },
+   "earnings": {
+      "pattern": "earnings/earnings_.*\\.zip",
+      "search_prefix": "earnings",
+      "format": "csv",
+      "encoding": "utf-8",
+      "compression": "zip",
+      "schema_overrides": {
+        # force post code to be treated as a string instead of an integer
+        "buyer_postal_code": {
+            "type": [
+               "null",
+               "string"
+            ],
+            "_conversion_type": "string"
+         }
+      }
+   }
+}
+DIMENSION_FIELDS = {
+    "acquisition": {
+        "buyers_7d": ["channel", "country", "play_country"],
+        "subscribers": ["channel", "country", "play_country"],
+        "retained_installers": ["channel", "country", "play_country"],
+    },
+    "stats": {
+        "crashes": ["app_version", "device", "os_version", "overview"],
+        "gcm": ["app_version", "carrier", "country", "device", "language", "message_status", "os_version", "overview", "response_code"],
+        "installs": ["app_version", "carrier", "country", "device", "language", "os_version", "overview"],
+        "ratings": ["app_version", "carrier", "country", "device", "language", "os_version", "overview"],
+        "store_performance": ["country", "traffic_source"],
+    }
+}
+for category, streams in DIMENSION_FIELDS.items():
+    for stream, dimensions in streams.items():
+        for dimension in dimensions:
+            STREAMS["{}_{}_by_{}".format(stream, category, dimension)] = {
+                "pattern": "{}/{}/{}_.*_{}\\.csv".format(
+                    category, stream, stream, dimension
+                ),
+              "search_prefix": "{}/{}/{}_".format(category, stream, stream),
+              "format": "csv",
+              "encoding": "utf-16"
+            }
 
 def discover():
-    raw_schemas = load_schemas()
-    streams = []
-    for stream_id, schema in raw_schemas.items():
-        # TODO: populate any metadata and stream's key properties here..
-        stream_metadata = []
-        key_properties = []
-        streams.append(
-            CatalogEntry(
-                tap_stream_id=stream_id,
-                stream=stream_id,
-                schema=schema,
-                key_properties=key_properties,
-                metadata=stream_metadata,
-                replication_key=None,
-                is_view=None,
-                database=None,
-                table=None,
-                row_count=None,
-                stream_alias=None,
-                replication_method=None,
-            )
-        )
-    return Catalog(streams)
+    # return the cached catalog
+    if os.getenv('TAP_PLAYSTORE_GENERATE_CATALOG') != 'true':
+        return Catalog.load(get_abs_path('cached_catalog.json'))
+    # This generates the catalog using tap-gcs-csv sampling
+    # and caches it to the tap.
+    config = args.config
+    config['tables'] = []
+    for stream_id, table_spec in STREAMS.items():
+        table_spec["name"] = stream_id
+        table_spec["key_properties"] = [
+            '_gcs_source_bucket',
+            '_gcs_source_file',
+            '_gcs_source_lineno',
+        ]
+        config['tables'].append(table_spec)
+    config['sample_rate'] = 1
+    config['max_files'] = 50
+    return tap_gcs_csv.discover(config)
 
 
-def sync(config, state, catalog):
-    """ Sync data from tap source """
-    # Loop over selected streams in catalog
-    for stream in catalog.get_selected_streams(state):
-        LOGGER.info("Syncing stream:" + stream.tap_stream_id)
-
-        bookmark_column = stream.replication_key
-        is_sorted = True  # TODO: indicate whether data is sorted ascending on bookmark value
-
-        singer.write_schema(
-            stream_name=stream.tap_stream_id,
-            schema=stream.schema,
-            key_properties=stream.key_properties,
-        )
-
-        # TODO: delete and replace this inline function with your own data retrieval process:
-        tap_data = lambda: [{"id": x, "name": "row${x}"} for x in range(1000)]
-
-        max_bookmark = None
-        for row in tap_data():
-            # TODO: place type conversions or transformations here
-
-            # write one or more rows to the stream:
-            singer.write_records(stream.tap_stream_id, [row])
-            if bookmark_column:
-                if is_sorted:
-                    # update bookmark to latest value
-                    singer.write_state({stream.tap_stream_id: row[bookmark_column]})
-                else:
-                    # if data unsorted, save max value until end of writes
-                    max_bookmark = max(max_bookmark, row[bookmark_column])
-        if bookmark_column and not is_sorted:
-            singer.write_state({stream.tap_stream_id: max_bookmark})
-    return
-
-
-@utils.handle_top_exception(LOGGER)
 def main():
     # Parse command line arguments
-    args = utils.parse_args(REQUIRED_CONFIG_KEYS)
+    args = singer.utils.parse_args(REQUIRED_CONFIG_KEYS)
 
-    # If discover flag was passed, run discovery mode and dump output to stdout
     if args.discover:
         catalog = discover()
         catalog.dump()
@@ -103,7 +116,8 @@ def main():
             catalog = args.catalog
         else:
             catalog = discover()
-        sync(args.config, args.state, catalog)
+
+        tap_gcs_csv.do_sync(args.config, args.state, catalog)
 
 
 if __name__ == "__main__":

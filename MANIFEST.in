@@ -1,2 +1,2 @@
 include LICENSE
-include tap_playstore/schemas/*.json
+include tap_playstore/cached_catalog.json
