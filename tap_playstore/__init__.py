@@ -36,7 +36,22 @@ STREAMS = {
       "search_prefix": "sales",
       "format": "csv",
       "encoding": "utf-8",
-      "compression": "zip"
+      "compression": "zip",
+      "schema_overrides": {
+        # these number fields have commas in them, and float("1,000.00") does not work.
+        "item_price": {
+            "type": ["null", "string"],
+            "_conversion_type": "string"
+         },
+        "taxes_collected": {
+            "type": ["null", "string"],
+            "_conversion_type": "string"
+         },
+        "charged_amount": {
+            "type": ["null", "string"],
+            "_conversion_type": "string"
+         }
+      }
    },
    "earnings": {
       "pattern": "earnings/earnings_.*\\.zip",
@@ -47,10 +62,7 @@ STREAMS = {
       "schema_overrides": {
         # force post code to be treated as a string instead of an integer
         "buyer_postal_code": {
-            "type": [
-               "null",
-               "string"
-            ],
+            "type": ["null", "string"],
             "_conversion_type": "string"
          }
       }
@@ -82,9 +94,9 @@ for category, streams in DIMENSION_FIELDS.items():
               "encoding": "utf-16"
             }
 
-def discover():
+def discover(cached=True):
     # return the cached catalog
-    if os.getenv('TAP_PLAYSTORE_GENERATE_CATALOG') != 'true':
+    if cached:
         return Catalog.load(get_abs_path('cached_catalog.json'))
     # This generates the catalog using tap-gcs-csv sampling
     # and caches it to the tap.
@@ -107,15 +119,16 @@ def main():
     # Parse command line arguments
     args = singer.utils.parse_args(REQUIRED_CONFIG_KEYS)
 
+    cached_catalog = args.config.get('cached_catalog', True)
     if args.discover:
-        catalog = discover()
+        catalog = discover(cached_catalog)
         catalog.dump()
     # Otherwise run in sync mode
     else:
         if args.catalog:
             catalog = args.catalog
         else:
-            catalog = discover()
+            catalog = discover(cached_catalog)
 
         tap_gcs_csv.do_sync(args.config, args.state, catalog)
 

@@ -11,7 +11,7 @@ setup(
     py_modules=["tap_playstore"],
     install_requires=[
         'singer-python>=5.12.1',
-        'tap-gcs-csv @ git+https://github.com/fixdauto/tap-gcs-csv.git@9cb3c67561ba4a67512526e064248ba018695db3',
+        'tap-gcs-csv @ git+https://github.com/fixdauto/tap-gcs-csv.git@v0.0.3',
     ],
     entry_points="""
     [console_scripts]

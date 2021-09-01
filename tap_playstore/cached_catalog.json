@@ -709,19 +709,19 @@
           "item_price": {
             "type": [
               "null",
-              "number"
+              "string"
             ]
           },
           "taxes_collected": {
             "type": [
               "null",
-              "number"
+              "string"
             ]
           },
           "charged_amount": {
             "type": [
               "null",
-              "number"
+              "string"
             ]
           },
           "city_of_buyer": {
@@ -898,7 +898,7 @@
           ],
           "metadata": {
             "inclusion": "available",
-            "conversion_type": "number"
+            "conversion_type": "string"
           }
         },
         {
@@ -908,7 +908,7 @@
           ],
           "metadata": {
             "inclusion": "available",
-            "conversion_type": "number"
+            "conversion_type": "string"
           }
         },
         {
@@ -918,7 +918,7 @@
           ],
           "metadata": {
             "inclusion": "available",
-            "conversion_type": "number"
+            "conversion_type": "string"
           }
         },
         {

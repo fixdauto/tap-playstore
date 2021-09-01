@@ -13,11 +13,12 @@ all the tables for you, and avoids having to sample the data to determine the sc
 ```javascript
 {
   "start_date": "2015-01-01T00:00:00Z",
-  // A path to a JSON credentials file for a service account. Make sure
-  // you give that user permissions by inviting them to your Play Store
-  // account and giving them "View app information and download bulk reports (read-only)"
-  // and "View financial data, orders, and cancellation survey responses" permissions.
+  // A path to a JSON credentials file for a service account. Make sure you give that
+  // user permissions by inviting them to your Play Store account and giving them
+  // "View app information and download bulk reports (read-only)" and
+  // "View financial data, orders, and cancellation survey responses" permissions.
   // These permissions must be granted account-wide, not just for one app.
+  // It can take a few hours before the grant takes effect.
   "credentials_path": "./client_secret.json",
   // The path to the bucket Google sends reports to. You can get this from the
   // "Copy Cloud Storage URI" button from the reports page.
