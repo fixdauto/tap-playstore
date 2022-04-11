@@ -1109,10 +1109,10 @@
               "string"
             ]
           },
-          "amount_(buyer_currency)": {
+          "amount__buyer_currency_": {
             "type": [
               "null",
-              "number"
+              "string"
             ]
           },
           "currency_conversion_rate": {
@@ -1127,10 +1127,10 @@
               "string"
             ]
           },
-          "amount_(merchant_currency)": {
+          "amount__merchant_currency_": {
             "type": [
               "null",
-              "number"
+              "string"
             ]
           },
           "base_plan_id": {
