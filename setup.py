@@ -12,6 +12,7 @@ setup(
     install_requires=[
         'singer-python>=5.12.1',
         'tap-gcs-csv @ git+https://github.com/fixdauto/tap-gcs-csv.git@v0.0.3',
+        'importlib-metadata>=5.0.0',
     ],
     entry_points="""
     [console_scripts]
