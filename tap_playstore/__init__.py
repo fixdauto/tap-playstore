@@ -1,4 +1,10 @@
 #!/usr/bin/env python3
+import importlib_metadata
+import sys
+# Replace stdlib importlib.metadata with backport
+if 'importlib.metadata' not in sys.modules or not hasattr(sys.modules['importlib.metadata'], 'packages_distributions'):
+    sys.modules['importlib.metadata'] = importlib_metadata
+
 import os
 import json
 import singer
