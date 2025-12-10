@@ -1264,7 +1264,7 @@
           ],
           "metadata": {
             "inclusion": "available",
-            "conversion_type": "integer"
+            "conversion_type": "string"
           }
         },
         {
